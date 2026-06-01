@@ -1,0 +1,951 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Універсальний 3D Конвертер в STL</title>
+    <!-- Tailwind CSS для стильного дизайну -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome для іконок -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0f172a;
+        }
+        /* Стилізація скроллбару */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1e293b;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #64748b;
+        }
+    </style>
+</head>
+<body class="text-slate-100 min-h-screen flex flex-col">
+
+    <!-- Навігаційна панель -->
+    <header class="border-b border-slate-800 bg-slate-900/80 backdrop-blur-md sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="bg-indigo-600 p-2.5 rounded-xl shadow-lg shadow-indigo-500/30">
+                    <i class="fa-solid fa-cube text-xl text-white"></i>
+                </div>
+                <div>
+                    <h1 class="font-bold text-lg tracking-wide text-white">AnyToSTL</h1>
+                    <p class="text-xs text-slate-400">Універсальний 3D-конвертер у браузері</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-4 text-xs sm:text-sm text-slate-400">
+                <span class="flex items-center gap-1.5"><i class="fa-solid fa-shield-halved text-emerald-500"></i> 100% Локально</span>
+                <span class="hidden sm:inline">|</span>
+                <span class="hidden sm:inline">Без лімітів на розмір</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Головний екран -->
+    <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 flex flex-col lg:flex-row gap-6">
+        
+        <!-- Ліва колонка: Завантаження та Параметри -->
+        <div class="w-full lg:w-1/3 flex flex-col gap-6">
+            
+            <!-- Картка імпорту -->
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl">
+                <h2 class="text-md font-semibold mb-4 flex items-center gap-2">
+                    <i class="fa-solid fa-file-import text-indigo-500"></i> Крок 1: Завантаження файлу
+                </h2>
+                
+                <!-- Зона Drag & Drop -->
+                <div id="drop-zone" class="border-2 border-dashed border-slate-700 hover:border-indigo-500 rounded-xl p-6 text-center cursor-pointer transition-all duration-300 bg-slate-950/40 hover:bg-slate-950/80 group">
+                    <input type="file" id="file-input" class="hidden" accept=".obj,.ply,.gltf,.glb,.3mf,.png,.jpg,.jpeg,.svg">
+                    <div class="flex flex-col items-center gap-3">
+                        <div class="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                            <i class="fa-solid fa-cloud-arrow-up text-xl text-slate-400 group-hover:text-indigo-400"></i>
+                        </div>
+                        <div>
+                            <p class="text-sm font-medium text-slate-200">Перетягніть файл сюди або натисніть</p>
+                            <p class="text-xs text-slate-500 mt-1">Підтримуються: 3D (OBJ, PLY, GLTF, GLB, 3MF), Зображення (PNG, JPG), Вектор (SVG)</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Блок інформації про завантажений файл -->
+                <div id="file-info" class="mt-4 p-3 bg-slate-950 rounded-lg border border-slate-800 hidden flex items-center justify-between">
+                    <div class="flex items-center gap-3 overflow-hidden">
+                        <div class="p-2 bg-indigo-950 rounded text-indigo-400 text-sm">
+                            <i class="fa-solid fa-file-code"></i>
+                        </div>
+                        <div class="overflow-hidden">
+                            <p id="info-name" class="text-xs font-semibold text-slate-200 truncate">file.obj</p>
+                            <p id="info-size" class="text-[10px] text-slate-500">0 KB</p>
+                        </div>
+                    </div>
+                    <button id="btn-remove-file" class="text-slate-500 hover:text-red-400 p-1.5 transition-colors">
+                        <i class="fa-solid fa-trash-can"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Картка параметрів конвертації -->
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl flex-1 flex flex-col justify-between">
+                <div>
+                    <h2 class="text-md font-semibold mb-4 flex items-center gap-2">
+                        <i class="fa-solid fa-sliders text-indigo-500"></i> Крок 2: Параметри STL
+                    </h2>
+
+                    <div class="space-y-4">
+                        <!-- Налаштування для карти висот (показуються лише для зображень) -->
+                        <div id="heightmap-settings" class="hidden space-y-4 p-3.5 bg-slate-950 rounded-xl border border-slate-800">
+                            <p class="text-xs font-semibold text-indigo-400 flex items-center gap-1.5">
+                                <i class="fa-solid fa-mountain"></i> НАЛАШТУВАННЯ КАРТИ ВИСОТ
+                            </p>
+                            
+                            <div>
+                                <label class="text-xs text-slate-400 flex justify-between mb-1">
+                                    <span>Максимальна висота (Z)</span>
+                                    <span id="val-height">15 мм</span>
+                                </label>
+                                <input type="range" id="input-height" min="1" max="100" value="15" class="w-full accent-indigo-500 h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer">
+                            </div>
+
+                            <div>
+                                <label class="text-xs text-slate-400 flex justify-between mb-1">
+                                    <span>Товщина основи (База)</span>
+                                    <span id="val-base">2 мм</span>
+                                </label>
+                                <input type="range" id="input-base" min="0" max="10" value="2" class="w-full accent-indigo-500 h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer">
+                            </div>
+
+                            <div>
+                                <label class="text-xs text-slate-400 flex justify-between mb-1">
+                                    <span>Деталізація сітки</span>
+                                    <span id="val-resolution">150 px</span>
+                                </label>
+                                <input type="range" id="input-resolution" min="50" max="300" step="10" value="150" class="w-full accent-indigo-500 h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer">
+                                <p class="text-[10px] text-slate-500 mt-1">Вищі значення покращують якість, але збільшують файл.</p>
+                            </div>
+
+                            <div class="flex items-center justify-between pt-1">
+                                <label class="text-xs text-slate-400 cursor-pointer" for="input-invert">Інвертувати рельєф</label>
+                                <input type="checkbox" id="input-invert" class="w-4 h-4 rounded text-indigo-600 bg-slate-800 border-slate-700 accent-indigo-500">
+                            </div>
+                        </div>
+
+                        <!-- Налаштування для SVG -->
+                        <div id="svg-settings" class="hidden space-y-4 p-3.5 bg-slate-950 rounded-xl border border-slate-800">
+                            <p class="text-xs font-semibold text-indigo-400 flex items-center gap-1.5">
+                                <i class="fa-solid fa-pen-nib"></i> НАЛАШТУВАННЯ SVG ЕКСТРУЗІЇ
+                            </p>
+                            
+                            <div>
+                                <label class="text-xs text-slate-400 flex justify-between mb-1">
+                                    <span>Глибина видавлювання (Z)</span>
+                                    <span id="val-svg-depth">10 мм</span>
+                                </label>
+                                <input type="range" id="input-svg-depth" min="1" max="100" value="10" class="w-full accent-indigo-500 h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer">
+                            </div>
+                        </div>
+
+                        <!-- Загальні налаштування STL -->
+                        <div class="space-y-4 pt-2">
+                            <div>
+                                <label class="text-xs text-slate-400 block mb-1">Формат експорту</label>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <button id="btn-fmt-bin" class="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-xs font-medium rounded-lg text-white transition-colors border border-indigo-500 shadow-md">
+                                        Binary (Компактний)
+                                    </button>
+                                    <button id="btn-fmt-ascii" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-xs font-medium rounded-lg text-slate-300 transition-colors border border-slate-700">
+                                        ASCII (Текстовий)
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="text-xs text-slate-400 block mb-1">Масштабування</label>
+                                    <input type="number" id="input-scale" value="1" step="0.1" min="0.01" class="w-full px-3 py-1.5 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:border-indigo-500">
+                                </div>
+                                <div>
+                                    <label class="text-xs text-slate-400 block mb-1">Поворот X (90°)</label>
+                                    <button id="btn-rotate-x" class="w-full px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-xs font-medium text-slate-300 transition-colors">
+                                        <i class="fa-solid fa-rotate-right mr-1.5"></i> Повернути
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Кнопка генерації/скачування -->
+                <div class="mt-6 pt-4 border-t border-slate-800">
+                    <button id="btn-download" disabled class="w-full py-3 bg-slate-800 text-slate-500 font-semibold rounded-xl text-sm transition-all duration-300 cursor-not-allowed flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-download"></i> Завантажити STL
+                    </button>
+                </div>
+            </div>
+            
+        </div>
+
+        <!-- Права колонка: 3D Переглядач -->
+        <div class="w-full lg:w-2/3 flex flex-col bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl min-h-[450px] lg:min-h-0">
+            <!-- Верхня плашка в'ювера -->
+            <div class="bg-slate-950 px-5 py-3 border-b border-slate-800 flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-indigo-500 animate-pulse"></span>
+                    <span class="text-xs font-semibold text-slate-300 tracking-wider uppercase">Інтерактивний 3D-Перегляд</span>
+                </div>
+                <!-- Інфо панель полігонів -->
+                <div id="model-stats" class="text-[11px] text-slate-500 flex gap-4 hidden">
+                    <span>Трикутники: <strong id="stat-faces" class="text-indigo-400">0</strong></span>
+                    <span>Вершини: <strong id="stat-verts" class="text-indigo-400">0</strong></span>
+                </div>
+            </div>
+            
+            <!-- Полотно в'ювера з лоадером -->
+            <div class="flex-1 relative bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-slate-900 via-slate-950 to-slate-950 flex items-center justify-center min-h-[350px]">
+                
+                <!-- Інструкція / Пустий стан -->
+                <div id="view-placeholder" class="absolute inset-0 flex flex-col items-center justify-center p-6 text-center z-10">
+                    <div class="w-16 h-16 rounded-full bg-slate-900/60 border border-slate-800 flex items-center justify-center mb-4">
+                        <i class="fa-solid fa-shapes text-2xl text-slate-600"></i>
+                    </div>
+                    <h3 class="text-sm font-semibold text-slate-300">Очікування завантаження файлу</h3>
+                    <p class="text-xs text-slate-500 max-w-sm mt-1">Виберіть або перетягніть 3D-файл, картинку або векторну графіку для рендерингу та конвертації.</p>
+                </div>
+
+                <!-- Елемент завантаження -->
+                <div id="view-loader" class="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/80 z-20 hidden">
+                    <div class="relative w-16 h-16 mb-4">
+                        <div class="absolute inset-0 rounded-full border-4 border-slate-800 border-t-indigo-500 animate-spin"></div>
+                    </div>
+                    <p class="text-sm font-medium text-slate-300">Обробка та рендеринг файлу...</p>
+                    <p id="loader-progress" class="text-xs text-slate-500 mt-1">Будь ласка, зачекайте</p>
+                </div>
+
+                <!-- 3D Canvas Container -->
+                <div id="canvas-container" class="w-full h-full opacity-0 transition-opacity duration-500"></div>
+                
+                <!-- Контролери камери / Кнопки -->
+                <div id="viewer-controls" class="absolute bottom-4 right-4 flex gap-2 z-10 hidden">
+                    <button id="btn-reset-cam" title="Скинути камеру" class="w-10 h-10 rounded-lg bg-slate-900/80 hover:bg-slate-800 border border-slate-800 text-slate-300 flex items-center justify-center transition-colors">
+                        <i class="fa-solid fa-arrows-to-eye"></i>
+                    </button>
+                    <button id="btn-toggle-grid" title="Увімкнути/Вимкнути сітку" class="w-10 h-10 rounded-lg bg-indigo-600 hover:bg-indigo-500 border border-indigo-500 text-white flex items-center justify-center transition-colors">
+                        <i class="fa-solid fa-border-all"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Тост-сповіщення -->
+    <div id="toast" class="fixed bottom-6 right-6 px-4 py-3 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 shadow-2xl flex items-center gap-3 translate-y-24 opacity-0 transition-all duration-300 z-50">
+        <div id="toast-icon" class="p-1.5 rounded-lg bg-emerald-950 text-emerald-400">
+            <i class="fa-solid fa-circle-check"></i>
+        </div>
+        <div class="text-xs">
+            <p id="toast-title" class="font-semibold text-white">Успішно!</p>
+            <p id="toast-msg" class="text-slate-400">Файл успішно сконвертовано</p>
+        </div>
+    </div>
+
+    <!-- Завантаження бібліотеки fflate у глобальну область видимості (необхідно для розпакування 3MF у Three.js) -->
+    <script src="https://cdn.jsdelivr.net/npm/fflate@0.8.0/umd/index.js"></script>
+    <script>
+        // Прив'язуємо fflate до об'єкта window, щоб завантажувач Three.js мав безпосередній доступ до нього
+        if (typeof fflate !== 'undefined') {
+            window.fflate = fflate;
+        }
+    </script>
+    
+    <!-- Завантаження бібліотек Three.js та імпортерів/експортерів -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/exporters/STLExporter.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/OBJLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/PLYLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/3MFLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/SVGLoader.js"></script>
+
+    <script>
+        // --- Декларація глобальних елементів UI ---
+        const dropZone = document.getElementById('drop-zone');
+        const fileInput = document.getElementById('file-input');
+        const fileInfo = document.getElementById('file-info');
+        const infoName = document.getElementById('info-name');
+        const infoSize = document.getElementById('info-size');
+        const btnRemoveFile = document.getElementById('btn-remove-file');
+        
+        const heightmapSettings = document.getElementById('heightmap-settings');
+        const inputHeight = document.getElementById('input-height');
+        const valHeight = document.getElementById('val-height');
+        const inputBase = document.getElementById('input-base');
+        const valBase = document.getElementById('val-base');
+        const inputResolution = document.getElementById('input-resolution');
+        const valResolution = document.getElementById('val-resolution');
+        const inputInvert = document.getElementById('input-invert');
+
+        const svgSettings = document.getElementById('svg-settings');
+        const inputSvgDepth = document.getElementById('input-svg-depth');
+        const valSvgDepth = document.getElementById('val-svg-depth');
+
+        const btnFmtBin = document.getElementById('btn-fmt-bin');
+        const btnFmtAscii = document.getElementById('btn-fmt-ascii');
+        const inputScale = document.getElementById('input-scale');
+        const btnRotateX = document.getElementById('btn-rotate-x');
+        const btnDownload = document.getElementById('btn-download');
+
+        const viewPlaceholder = document.getElementById('view-placeholder');
+        const viewLoader = document.getElementById('view-loader');
+        const loaderProgress = document.getElementById('loader-progress');
+        const canvasContainer = document.getElementById('canvas-container');
+        const viewerControls = document.getElementById('viewer-controls');
+        const btnResetCam = document.getElementById('btn-reset-cam');
+        const btnToggleGrid = document.getElementById('btn-toggle-grid');
+        
+        const modelStats = document.getElementById('model-stats');
+        const statFaces = document.getElementById('stat-faces');
+        const statVerts = document.getElementById('stat-verts');
+
+        // --- Глобальні стани конвертера ---
+        let currentFile = null;
+        let loadedMesh = null; // Основний 3D об'єкт для рендерингу та конвертації
+        let isBinary = true;
+        let rotationX = 0; // Поточний кут обертання по осі X (радіани)
+
+        // Налаштування сцени Three.js
+        let scene, camera, renderer, controls, gridHelper;
+
+        // Ініціалізація 3D-сцени
+        function init3D() {
+            scene = new THREE.Scene();
+            scene.background = null;
+
+            // Камера
+            camera = new THREE.PerspectiveCamera(45, canvasContainer.clientWidth / canvasContainer.clientHeight, 0.1, 1000);
+            camera.position.set(50, 50, 50);
+
+            // Рендерер
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.setSize(canvasContainer.clientWidth, canvasContainer.clientHeight);
+            renderer.shadowMap.enabled = true;
+            canvasContainer.appendChild(renderer.domElement);
+
+            // Орбітальні контролери
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+
+            // Освітлення
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambientLight);
+
+            const dirLight1 = new THREE.DirectionalLight(0xffffff, 0.8);
+            dirLight1.position.set(100, 150, 50);
+            scene.add(dirLight1);
+
+            const dirLight2 = new THREE.DirectionalLight(0x4f46e5, 0.4); // Легкий неоново-синій колір
+            dirLight2.position.set(-100, -50, -50);
+            scene.add(dirLight2);
+
+            // Сітка основи
+            gridHelper = new THREE.GridHelper(100, 50, 0x4f46e5, 0x334155);
+            gridHelper.position.y = -0.01;
+            scene.add(gridHelper);
+
+            // Анімаційний цикл
+            function animate() {
+                requestAnimationFrame(animate);
+                controls.update();
+                renderer.render(scene, camera);
+            }
+            animate();
+
+            // Слухач зміни розміру вікна
+            window.addEventListener('resize', onWindowResize);
+        }
+
+        function onWindowResize() {
+            camera.aspect = canvasContainer.clientWidth / canvasContainer.clientHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(canvasContainer.clientWidth, canvasContainer.clientHeight);
+        }
+
+        // --- Допоміжні функції повідомлень ---
+        function showToast(title, message, isError = false) {
+            const toast = document.getElementById('toast');
+            const icon = document.getElementById('toast-icon');
+            const tTitle = document.getElementById('toast-title');
+            const tMsg = document.getElementById('toast-msg');
+
+            tTitle.innerText = title;
+            tMsg.innerText = message;
+
+            if (isError) {
+                icon.className = "p-1.5 rounded-lg bg-red-950 text-red-400";
+                icon.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i>';
+            } else {
+                icon.className = "p-1.5 rounded-lg bg-emerald-950 text-emerald-400";
+                icon.innerHTML = '<i class="fa-solid fa-circle-check"></i>';
+            }
+
+            toast.classList.remove('translate-y-24', 'opacity-0');
+            toast.classList.add('translate-y-0', 'opacity-100');
+
+            setTimeout(() => {
+                toast.classList.remove('translate-y-0', 'opacity-100');
+                toast.classList.add('translate-y-24', 'opacity-0');
+            }, 4000);
+        }
+
+        // --- Обробка завантажених файлів ---
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('border-indigo-500', 'bg-slate-950/80');
+        });
+
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.classList.remove('border-indigo-500', 'bg-slate-950/80');
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('border-indigo-500', 'bg-slate-950/80');
+            if (e.dataTransfer.files.length > 0) {
+                processFile(e.dataTransfer.files[0]);
+            }
+        });
+
+        dropZone.addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                processFile(e.target.files[0]);
+            }
+        });
+
+        btnRemoveFile.addEventListener('click', clearCurrentModel);
+
+        function clearCurrentModel() {
+            if (loadedMesh) {
+                scene.remove(loadedMesh);
+                loadedMesh = null;
+            }
+            currentFile = null;
+            fileInput.value = "";
+            fileInfo.classList.add('hidden');
+            dropZone.classList.remove('hidden');
+            heightmapSettings.classList.add('hidden');
+            svgSettings.classList.add('hidden');
+            
+            // Скидання UI контролерів
+            viewPlaceholder.classList.remove('hidden');
+            canvasContainer.classList.add('opacity-0');
+            viewerControls.classList.add('hidden');
+            modelStats.classList.add('hidden');
+            
+            btnDownload.disabled = true;
+            btnDownload.className = "w-full py-3 bg-slate-800 text-slate-500 font-semibold rounded-xl text-sm transition-all duration-300 cursor-not-allowed flex items-center justify-center gap-2";
+            rotationX = 0;
+        }
+
+        function formatBytes(bytes, decimals = 2) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const dm = decimals < 0 ? 0 : decimals;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+        }
+
+        // Локальний обробник завантаження файлів різних типів
+        function processFile(file) {
+            clearCurrentModel();
+            currentFile = file;
+            
+            // Відображаємо інформаційну панель завантаженого файлу
+            infoName.innerText = file.name;
+            infoSize.innerText = formatBytes(file.size);
+            fileInfo.classList.remove('hidden');
+            dropZone.classList.add('hidden');
+
+            const extension = file.name.split('.').pop().toLowerCase();
+            viewLoader.classList.remove('hidden');
+            viewPlaceholder.classList.add('hidden');
+
+            const reader = new FileReader();
+
+            // Диференціація логіки завантаження залежно від формату
+            if (['png', 'jpg', 'jpeg'].includes(extension)) {
+                heightmapSettings.classList.remove('hidden');
+                reader.readAsDataURL(file);
+                reader.onload = (e) => generateHeightmapFromImage(e.target.result);
+            } else if (extension === 'svg') {
+                svgSettings.classList.remove('hidden');
+                reader.readAsText(file);
+                reader.onload = (e) => generateMeshFromSVG(e.target.result);
+            } else if (['obj', 'ply', 'gltf', 'glb', '3mf'].includes(extension)) {
+                if (['obj', 'ply', '3mf'].includes(extension)) {
+                    reader.readAsArrayBuffer(file);
+                    reader.onload = (e) => load3DModel(e.target.result, extension);
+                } else {
+                    // Для GLTF/GLB краще завантажувати через Blob URL
+                    const blobUrl = URL.createObjectURL(file);
+                    load3DModel(blobUrl, extension);
+                }
+            } else {
+                showToast("Помилка формату", "Даний формат файлу поки що не підтримується для STL конвертації.", true);
+                clearCurrentModel();
+            }
+        }
+
+        // --- Генератори 3D моделей з не-3D файлів ---
+
+        // 1. Конвертація картинки у 3D карту висот (Heightmap)
+        function generateHeightmapFromImage(dataUrl) {
+            loaderProgress.innerText = "Генерація 3D-рельєфу...";
+            const img = new Image();
+            img.src = dataUrl;
+            img.onload = function() {
+                const resolution = parseInt(inputResolution.value);
+                const baseThickness = parseFloat(inputBase.value);
+                const maxZ = parseFloat(inputHeight.value);
+                const invert = inputInvert.checked;
+
+                // Масштабуємо картинку для створення карти пікселів
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                
+                // Зберігаємо пропорції картинки
+                const aspect = img.width / img.height;
+                let w = resolution;
+                let h = Math.round(resolution / aspect);
+                canvas.width = w;
+                canvas.height = h;
+                
+                ctx.drawImage(img, 0, 0, w, h);
+                const imgData = ctx.getImageData(0, 0, w, h);
+                const data = imgData.data;
+
+                // Створюємо кастомну геометрію
+                const geometry = new THREE.PlaneGeometry(50, 50 * (h/w), w - 1, h - 1);
+                geometry.rotateX(-Math.PI / 2); // повертаємо горизонтально
+
+                const vertices = geometry.attributes.position.array;
+
+                for (let i = 0; i < w * h; i++) {
+                    const r = data[i * 4];
+                    const g = data[i * 4 + 1];
+                    const b = data[i * 4 + 2];
+                    // Середнє значення яскравості (сірий колір)
+                    let brightness = (r + g + b) / 3 / 255;
+                    if (invert) brightness = 1 - brightness;
+
+                    // Зміщуємо вершину по осі Y (яка після повороту виконує роль висоти Z)
+                    // Індекс координати Y у масиві PlaneGeometry після повороту відповідає індексу 1 (x, y, z)
+                    vertices[i * 3 + 1] = baseThickness + (brightness * maxZ);
+                }
+
+                geometry.computeVertexNormals();
+
+                // Створення матеріалу та мешу
+                const material = new THREE.MeshStandardMaterial({ 
+                    color: 0x818cf8, // Indigo-400
+                    roughness: 0.4,
+                    metalness: 0.2,
+                    side: THREE.DoubleSide
+                });
+
+                if (loadedMesh) scene.remove(loadedMesh);
+                loadedMesh = new THREE.Mesh(geometry, material);
+                scene.add(loadedMesh);
+
+                centerAndScaleModel(loadedMesh);
+                finalizeImport();
+            };
+        }
+
+        // 2. Екструзія векторного SVG у 3D тіло
+        function generateMeshFromSVG(svgText) {
+            loaderProgress.innerText = "Обробка векторних контурів...";
+            try {
+                const loader = new THREE.SVGLoader();
+                const svgData = loader.parse(svgText);
+                const paths = svgData.paths;
+                
+                const group = new THREE.Group();
+                const depth = parseFloat(inputSvgDepth.value);
+
+                // Оскільки SVG початково двовимірний, ми перетворюємо кожен шлях на ExtrudeGeometry
+                paths.forEach((path) => {
+                    const shapes = THREE.SVGLoader.createShapes(path);
+                    shapes.forEach((shape) => {
+                        const geometry = new THREE.ExtrudeGeometry(shape, {
+                            depth: depth,
+                            bevelEnabled: true,
+                            bevelSegments: 2,
+                            steps: 1,
+                            bevelSize: 0.2,
+                            bevelThickness: 0.2
+                        });
+                        
+                        const material = new THREE.MeshStandardMaterial({ 
+                            color: 0x818cf8,
+                            roughness: 0.4,
+                            metalness: 0.2
+                        });
+                        
+                        const mesh = new THREE.Mesh(geometry, material);
+                        group.add(mesh);
+                    });
+                });
+
+                // Корекція положення SVG (переворот, оскільки SVG орієнтований зверху вниз)
+                group.rotateX(Math.PI);
+
+                if (loadedMesh) scene.remove(loadedMesh);
+                loadedMesh = group;
+                scene.add(loadedMesh);
+
+                centerAndScaleModel(loadedMesh);
+                finalizeImport();
+            } catch (err) {
+                showToast("Помилка SVG", "Не вдалося обробити векторний файл. Переконайтеся, що він валідний.", true);
+                clearCurrentModel();
+            }
+        }
+
+        // --- Завантаження стандартних 3D-форматів ---
+        function load3DModel(data, format) {
+            loaderProgress.innerText = "Парсинг 3D даних...";
+            
+            const material = new THREE.MeshStandardMaterial({ 
+                color: 0x818cf8, 
+                roughness: 0.5,
+                metalness: 0.1
+            });
+
+            if (format === 'obj') {
+                try {
+                    const loader = new THREE.OBJLoader();
+                    const decoder = new TextDecoder();
+                    const objText = decoder.decode(data);
+                    const obj = loader.parse(objText);
+                    
+                    // Фарбуємо всі дочірні меші в один приємний колір
+                    obj.traverse((child) => {
+                        if (child.isMesh) child.material = material;
+                    });
+
+                    loadedMesh = obj;
+                    scene.add(loadedMesh);
+                    centerAndScaleModel(loadedMesh);
+                    finalizeImport();
+                } catch (e) {
+                    showErrorAndReset();
+                }
+            } else if (format === 'ply') {
+                try {
+                    const loader = new THREE.PLYLoader();
+                    const geometry = loader.parse(data);
+                    geometry.computeVertexNormals();
+                    
+                    loadedMesh = new THREE.Mesh(geometry, material);
+                    scene.add(loadedMesh);
+                    centerAndScaleModel(loadedMesh);
+                    finalizeImport();
+                } catch (e) {
+                    showErrorAndReset();
+                }
+            } else if (format === '3mf') {
+                // Стабільна робота з 3MF архівами без застарілих/відсутніх методів API
+                try {
+                    loaderProgress.innerText = "Розпакування та імпорт 3MF...";
+                    
+                    // Перевіряємо та реєструємо глобальний об'єкт fflate
+                    if (typeof fflate !== 'undefined') {
+                        window.fflate = fflate;
+                    } else {
+                        throw new Error("fflate не ініціалізовано.");
+                    }
+
+                    // Передаємо ОРИГІНАЛЬНИЙ ArrayBuffer (data) безпосередньо в 3MFLoader.
+                    // 3MFLoader автоматично розпакує та розпарсить цей 3MF архів за допомогою window.fflate.
+                    const loader = new THREE.ThreeMFLoader();
+                    const group = loader.parse(data);
+                    
+                    group.traverse((child) => {
+                        if (child.isMesh) child.material = material;
+                    });
+
+                    loadedMesh = group;
+                    scene.add(loadedMesh);
+                    centerAndScaleModel(loadedMesh);
+                    finalizeImport();
+
+                } catch (e) {
+                    console.error("Системна помилка 3MFLoader:", e);
+                    showToast("Помилка 3MF", "Не вдалося розпарсити модель. Переконайтеся, що файл не пошкоджений.", true);
+                    clearCurrentModel();
+                }
+            } else if (format === 'gltf' || format === 'glb') {
+                const loader = new THREE.GLTFLoader();
+                loader.load(data, (gltf) => {
+                    loadedMesh = gltf.scene;
+                    loadedMesh.traverse((child) => {
+                        if (child.isMesh) child.material = material;
+                    });
+                    scene.add(loadedMesh);
+                    centerAndScaleModel(loadedMesh);
+                    finalizeImport();
+                }, (xhr) => {
+                    if (xhr.total > 0) {
+                        const pct = Math.round((xhr.loaded / xhr.total) * 100);
+                        loaderProgress.innerText = `Завантаження: ${pct}%`;
+                    }
+                }, (error) => {
+                    showErrorAndReset();
+                });
+            }
+        }
+
+        function showErrorAndReset() {
+            showToast("Помилка завантаження", "Не вдалося зчитати структуру 3D-моделі.", true);
+            clearCurrentModel();
+        }
+
+        // --- Допоміжні функції оптимізації сцени ---
+        function centerAndScaleModel(object) {
+            // Отримуємо межі об'єкта
+            const box = new THREE.Box3().setFromObject(object);
+            const size = box.getSize(new THREE.Vector3());
+            const center = box.getCenter(new THREE.Vector3());
+
+            // Зміщуємо об'єкт у центр координат
+            object.position.x += (object.position.x - center.x);
+            object.position.y += (object.position.y - center.y);
+            object.position.z += (object.position.z - center.z);
+            
+            // Встановлюємо на площину сітки (Y=0)
+            const minBox = new THREE.Box3().setFromObject(object);
+            object.position.y -= minBox.min.y;
+
+            // Розрахунок адекватного масштабу для відображення в сцені (~30-40 одиниць)
+            const maxDim = Math.max(size.x, size.y, size.z);
+            if (maxDim > 0) {
+                const scaleFactor = 35 / maxDim;
+                object.scale.set(scaleFactor, scaleFactor, scaleFactor);
+            }
+
+            // Фокусуємо камеру
+            resetCamera();
+        }
+
+        function resetCamera() {
+            if (!loadedMesh) return;
+            const box = new THREE.Box3().setFromObject(loadedMesh);
+            const size = box.getSize(new THREE.Vector3());
+            const center = box.getCenter(new THREE.Vector3());
+
+            controls.target.copy(center);
+            camera.position.set(center.x + size.x * 1.5, center.y + size.y * 1.5, center.z + size.z * 1.5);
+            camera.lookAt(center);
+            controls.update();
+        }
+
+        function finalizeImport() {
+            // Рахуємо статистику полігонів
+            let faces = 0;
+            let vertices = 0;
+
+            loadedMesh.traverse((child) => {
+                if (child.isMesh && child.geometry) {
+                    const geom = child.geometry;
+                    if (geom.index) {
+                        faces += geom.index.count / 3;
+                    } else if (geom.attributes.position) {
+                        faces += geom.attributes.position.count / 3;
+                    }
+                    if (geom.attributes.position) {
+                        vertices += geom.attributes.position.count;
+                    }
+                }
+            });
+
+            statFaces.innerText = Math.round(faces).toLocaleString('uk-UA');
+            statVerts.innerText = Math.round(vertices).toLocaleString('uk-UA');
+            modelStats.classList.remove('hidden');
+
+            // Активуємо UI
+            viewLoader.classList.add('hidden');
+            canvasContainer.classList.remove('opacity-0');
+            viewerControls.classList.remove('hidden');
+            
+            btnDownload.disabled = false;
+            btnDownload.className = "w-full py-3 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-semibold rounded-xl text-sm transition-all duration-300 shadow-lg shadow-indigo-500/20 hover:shadow-indigo-500/30 flex items-center justify-center gap-2 active:scale-95 cursor-pointer";
+            
+            showToast("Успішно імпортовано!", "Модель готова до експорту в STL.");
+        }
+
+        // --- Інтерактивні обробники параметрів ---
+
+        // Слухачі для карти висот
+        inputHeight.addEventListener('input', (e) => {
+            valHeight.innerText = `${e.target.value} мм`;
+            if (currentFile && ['png', 'jpg', 'jpeg'].includes(currentFile.name.split('.').pop().toLowerCase())) {
+                regenerateHeightmapDebounced();
+            }
+        });
+
+        inputBase.addEventListener('input', (e) => {
+            valBase.innerText = `${e.target.value} мм`;
+            if (currentFile && ['png', 'jpg', 'jpeg'].includes(currentFile.name.split('.').pop().toLowerCase())) {
+                regenerateHeightmapDebounced();
+            }
+        });
+
+        inputResolution.addEventListener('input', (e) => {
+            valResolution.innerText = `${e.target.value} px`;
+        });
+
+        inputResolution.addEventListener('change', () => {
+            if (currentFile && ['png', 'jpg', 'jpeg'].includes(currentFile.name.split('.').pop().toLowerCase())) {
+                regenerateHeightmapImmediate();
+            }
+        });
+
+        inputInvert.addEventListener('change', () => {
+            if (currentFile && ['png', 'jpg', 'jpeg'].includes(currentFile.name.split('.').pop().toLowerCase())) {
+                regenerateHeightmapImmediate();
+            }
+        });
+
+        // Слухачі для SVG
+        inputSvgDepth.addEventListener('input', (e) => {
+            valSvgDepth.innerText = `${e.target.value} мм`;
+            if (currentFile && currentFile.name.split('.').pop().toLowerCase() === 'svg') {
+                regenerateSVGDebounced();
+            }
+        });
+
+        // Дебаунс функцій для плавності інтерфейсу при перетягуванні повзунків
+        let timeoutId;
+        function regenerateHeightmapDebounced() {
+            clearTimeout(timeoutId);
+            timeoutId = setTimeout(regenerateHeightmapImmediate, 150);
+        }
+
+        function regenerateHeightmapImmediate() {
+            if (!currentFile) return;
+            viewLoader.classList.remove('hidden');
+            const reader = new FileReader();
+            reader.readAsDataURL(currentFile);
+            reader.onload = (e) => generateHeightmapFromImage(e.target.result);
+        }
+
+        function regenerateSVGDebounced() {
+            clearTimeout(timeoutId);
+            timeoutId = setTimeout(() => {
+                if (!currentFile) return;
+                viewLoader.classList.remove('hidden');
+                const reader = new FileReader();
+                reader.readAsText(currentFile);
+                reader.onload = (e) => generateMeshFromSVG(e.target.result);
+            }, 150);
+        }
+
+        // Обертання моделі по осі X
+        btnRotateX.addEventListener('click', () => {
+            if (!loadedMesh) return;
+            rotationX += Math.PI / 2; // Обертаємо на 90 градусів
+            loadedMesh.rotateX(Math.PI / 2);
+            showToast("Поворот", "Модель повернуто на 90° по осі X");
+        });
+
+        // Вибір формату STL
+        btnFmtBin.addEventListener('click', () => {
+            isBinary = true;
+            btnFmtBin.className = "px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-xs font-medium rounded-lg text-white transition-colors border border-indigo-500 shadow-md";
+            btnFmtAscii.className = "px-3 py-2 bg-slate-800 hover:bg-slate-700 text-xs font-medium rounded-lg text-slate-300 transition-colors border border-slate-700";
+        });
+
+        btnFmtAscii.addEventListener('click', () => {
+            isBinary = false;
+            btnFmtAscii.className = "px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-xs font-medium rounded-lg text-white transition-colors border border-indigo-500 shadow-md";
+            btnFmtBin.className = "px-3 py-2 bg-slate-800 hover:bg-slate-700 text-xs font-medium rounded-lg text-slate-300 transition-colors border border-slate-700";
+        });
+
+        // Інші кнопки керування
+        btnResetCam.addEventListener('click', resetCamera);
+        
+        let gridVisible = true;
+        btnToggleGrid.addEventListener('click', () => {
+            gridVisible = !gridVisible;
+            gridHelper.visible = gridVisible;
+            if (gridVisible) {
+                btnToggleGrid.className = "w-10 h-10 rounded-lg bg-indigo-600 hover:bg-indigo-500 border border-indigo-500 text-white flex items-center justify-center transition-colors";
+            } else {
+                btnToggleGrid.className = "w-10 h-10 rounded-lg bg-slate-900/80 hover:bg-slate-800 border border-slate-800 text-slate-300 flex items-center justify-center transition-colors";
+            }
+        });
+
+        // --- Експорт та Завантаження у форматі STL ---
+        btnDownload.addEventListener('click', () => {
+            if (!loadedMesh) return;
+
+            showToast("Підготовка...", "Генерується файл STL...");
+
+            // Тимчасово масштабуємо відповідно до введеного користувачем значення масштабу
+            const userScale = parseFloat(inputScale.value) || 1;
+            const originalScale = loadedMesh.scale.clone();
+            loadedMesh.scale.multiplyScalar(userScale);
+
+            const exporter = new THREE.STLExporter();
+            // Експортуємо
+            const result = exporter.parse(loadedMesh, { binary: isBinary });
+
+            // Повертаємо оригінальний масштаб для відображення в сцені
+            loadedMesh.scale.copy(originalScale);
+
+            // Створюємо Blob та ініціюємо завантаження
+            let blob;
+            if (isBinary) {
+                blob = new Blob([result], { type: 'application/octet-stream' });
+            } else {
+                blob = new Blob([result], { type: 'text/plain' });
+            }
+
+            // Генеруємо ім'я вихідного файлу
+            const originalName = currentFile ? currentFile.name.substring(0, currentFile.name.lastIndexOf('.')) : 'model';
+            const outputFileName = `${originalName}_converted.stl`;
+
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = outputFileName;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            showToast("Завантажено!", `Ваш файл ${outputFileName} успішно збережено.`);
+        });
+
+        // Старт додатка
+        window.onload = function() {
+            init3D();
+        };
+    </script>
+</body>
+</html>
